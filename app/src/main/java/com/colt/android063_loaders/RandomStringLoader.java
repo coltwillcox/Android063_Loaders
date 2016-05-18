@@ -1,7 +1,10 @@
 package com.colt.android063_loaders;
 
 import android.content.AsyncTaskLoader;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -12,6 +15,9 @@ import java.util.Random;
 
 public class RandomStringLoader extends AsyncTaskLoader<ArrayList<String>> {
 
+    public static final String STRINGLOADER_RELOAD = "RandomStringLoader.RELOAD";
+    private Receiver receiver;
+
     // Constructor.
     public RandomStringLoader(Context context) {
         super(context);
@@ -19,6 +25,11 @@ public class RandomStringLoader extends AsyncTaskLoader<ArrayList<String>> {
 
     @Override
     protected void onStartLoading() {
+        receiver = new Receiver(this);
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(STRINGLOADER_RELOAD);
+        getContext().registerReceiver(receiver, filter); // NEVER store a reference to Context (in Loader)!
+
         forceLoad();
         super.onStartLoading();
     }
@@ -51,6 +62,28 @@ public class RandomStringLoader extends AsyncTaskLoader<ArrayList<String>> {
     public void deliverResult(ArrayList<String> data) {
         if (isStarted())
             super.deliverResult(data);
+    }
+
+    @Override
+    protected void onReset() {
+        getContext().unregisterReceiver(receiver);
+        stopLoading();
+        super.onReset();
+    }
+
+    // Inner class.
+    public class Receiver extends BroadcastReceiver {
+        private RandomStringLoader loader;
+
+        // Constructor.
+        public Receiver(RandomStringLoader loader) {
+            this.loader = loader;
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            loader.onContentChanged(); // loadInBackground() will be (again) executed when Button clicks (reloadStrings()).
+        }
     }
 
 }
